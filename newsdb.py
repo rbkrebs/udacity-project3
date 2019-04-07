@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-# "Database code" for the DB Forum.
+
 import psycopg2
 
 DBNAME = "news"
@@ -10,7 +10,14 @@ def get_popular_articles():
     """Return the most popular three articles of all time."""
     db = psycopg2.connect(database=DBNAME)
     c = db.cursor()
-    c.execute("select a.title,  count(a.title) from articles as a inner join log as l on l.path like '%'||a.slug and l.status = '200 OK' group by a.title order by count desc limit 3;")
+    c.execute('''SELECT a.title,
+                    COUNT(a.title)
+                FROM articles AS a
+                INNER JOIN log AS l ON l.path LIKE '%'||a.slug
+                AND l.status = '200 OK'
+                GROUP BY a.title
+                ORDER BY COUNT DESC
+                LIMIT 3;''')
     articles = c.fetchall()
     return articles
 
@@ -20,7 +27,15 @@ def get_popular_author():
     """Return the most popular article authors of all time."""
     db = psycopg2.connect(database=DBNAME)
     c = db.cursor()
-    c.execute("select au.name,  count(au.name) from articles as a inner join log as l on l.path like '%'||a.slug inner join authors as au on au.id = a.author  and l.status = '200 OK' group by au.name order by count desc limit 4;")
+    c.execute('''SELECT au.name,
+                    COUNT(au.name)
+                FROM articles AS a
+                INNER JOIN log AS l ON l.path LIKE '%'||a.slug
+                INNER JOIN authors AS au ON au.id = a.author
+                AND l.status = '200 OK'
+                GROUP BY au.name
+                ORDER BY COUNT DESC
+                LIMIT 4;''')
     authors = c.fetchall()
     return authors
 
@@ -30,9 +45,18 @@ def get_worse_day():
     """Return which days did more than 1% of requests lead to errors."""
     db = psycopg2.connect(database=DBNAME)
     c = db.cursor()
-    c.execute("select date(time) as data, cast(COUNT(case when status <> '200 OK' then 1 end) as decimal)/COUNT(case when status = '200 OK' then 1 end)*100 from log group by data having cast(COUNT(case when status <> '200 OK' then 1 end)as decimal)/COUNT(case when status = '200 OK' then 1 end)*100>=1;")
+    c.execute('''SELECT date(TIME) AS DATA,
+                    CAST(COUNT(CASE
+                            WHEN status <> '200 OK' THEN 1
+                                END) AS DECIMAL)/COUNT(*)*100
+                FROM log
+                GROUP BY DATA
+                HAVING cast(COUNT(CASE
+                            WHEN status <> '200 OK' THEN 1
+                                END)AS DECIMAL)/COUNT(*)*100>=1;''')
     data = c.fetchall()
     return data
+
 
 articles = get_popular_articles()
 print('What are the most popular three articles of all time?\n')
@@ -48,7 +72,7 @@ for author in authors:
 
 
 data = get_worse_day()[0][0].strftime('%B %d, %Y')
-percentage = round(get_worse_day()[0][1], 1)
+percentage = round(get_worse_day()[0][1], 2)
 
 print('On which days did more than 1% of requests lead to errors?\n')
 print('{} -- {}%\n'.format(data, percentage))
